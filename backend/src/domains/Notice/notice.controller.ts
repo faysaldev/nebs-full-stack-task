@@ -1,59 +1,145 @@
-import { Response } from "express";
-import dataService from "./notice.services";
-import { handleError } from "../../lib/errorsHandle";
-import httpStatus, { status } from "http-status";
-import { ProtectedRequest } from "../../types/protected-request";
-import redis from "../../config/redis";
+import { Request, Response } from "express";
+import noticeServices from "./notice.service";
 
-const getAllData = async (req: ProtectedRequest, res: Response) => {
+const createNotice = async (req: Request, res: Response) => {
   try {
-    res.setHeader("Content-Type", "application/json");
-    res.status(httpStatus.OK);
-    const cacheBigData = await redis.get("big-data");
-
-    if (cacheBigData) {
-      console.log(`Serving data from Cache...`);
-      const response = {
-        code: httpStatus.OK,
-        status: "OK",
-        message: "Serving Data from Cache",
-        data: JSON.parse(cacheBigData),
-      };
-      res.json(response);
-    } else {
-      console.log("Fetching data from data service...");
-      const readStream = await dataService.getAllData();
-      const chunks: string[] = [];
-      readStream.on("data", (chunk) => {
-        const base64Chunk = chunk.toString("base64"); // Encode each chunk in base64
-        chunks.push(base64Chunk); // Collect all chunks
-      });
-
-      readStream.on("end", async () => {
-        const allData = chunks.join(""); // Combine all base64 chunks into a single string
-
-        // Step 4: Cache the data in Redis
-        await redis.set("big-data", JSON.stringify(allData), "EX", 3600); // Cache for 1 hour (3600 seconds)
-
-        // Step 5: Return the data to the client
-        const responseData = {
-          code: 200,
-          status: "OK",
-          message: "Streaming data",
-          data: allData, // Send the combined base64 data
-        };
-
-        res.json(responseData); // Send the JSON response
-      });
-    }
+    const notice = await noticeServices.createNotice(req.body);
+    res.status(201).json({
+      success: true,
+      data: notice,
+      message: "Notice created successfully",
+    });
   } catch (error) {
-    const handledError = handleError(error); // Handle any other errors
-    res.status(500).json({ error: handledError.message });
+    res.status(500).json({
+      success: false,
+      message: "Error creating notice",
+      error: (error as Error).message,
+    });
   }
 };
 
-const dataController = {
-  getAllData,
+const updateNotice = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const notice = await noticeServices.updateNotice(id, req.body);
+
+    if (!notice) {
+      return res.status(404).json({
+        success: false,
+        message: "Notice not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: notice,
+      message: "Notice updated successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error updating notice",
+      error: (error as Error).message,
+    });
+  }
 };
 
-export default dataController;
+const toggleNoticeDraft = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isDraft } = req.body;
+
+    const notice = await noticeServices.toggleNoticeDraft(id, isDraft);
+
+    if (!notice) {
+      return res.status(404).json({
+        success: false,
+        message: "Notice not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: notice,
+      message: `Notice ${isDraft ? "drafted" : "published"} successfully`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error toggling notice draft status",
+      error: (error as Error).message,
+    });
+  }
+};
+
+const deleteNotice = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const deleted = await noticeServices.deleteNotice(id);
+
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        message: "Notice not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Notice deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error deleting notice",
+      error: (error as Error).message,
+    });
+  }
+};
+
+const getAllNotices = async (req: Request, res: Response) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      target,
+      emp_id,
+      emp_name,
+      status,
+      publish_date,
+    } = req.query;
+
+    const filters = {
+      target: target as "individuals" | "department" | undefined,
+      emp_id: emp_id as string | undefined,
+      emp_name: emp_name as string | undefined,
+      status: status as "active" | "inactive" | undefined,
+      publish_date: publish_date ? new Date(publish_date as string) : undefined,
+    };
+
+    const result = await noticeServices.getAllNotices({
+      page: parseInt(page as string),
+      limit: parseInt(limit as string),
+      filters,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching notices",
+      error: (error as Error).message,
+    });
+  }
+};
+
+export default {
+  getAllNotices,
+  deleteNotice,
+  toggleNoticeDraft,
+  updateNotice,
+  createNotice,
+};

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import dataRoutes from "../domains/Notice/notice.route";
+import dataRoutes from "../domains/Notice/notice.routes";
 // Initialize the router
 const router = Router();
 
