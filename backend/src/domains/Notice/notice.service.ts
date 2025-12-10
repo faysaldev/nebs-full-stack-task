@@ -4,28 +4,60 @@ import {
   UpdateNoticeData,
 } from "../../types/types";
 import Notice, { Notices } from "./notice.model";
+import redis from "../../config/redis";
 
 const createNotice = async (data: CreateNoticeData): Promise<Notices> => {
   const notice = new Notice(data);
-  return await notice.save();
+  const savedNotice = await notice.save();
+
+  // Clear cache when creating new notice
+  await redis.del("notices:*");
+
+  return savedNotice;
 };
 
 const updateNotice = async (
   noticeId: string,
   data: UpdateNoticeData
 ): Promise<Notices | null> => {
-  return await Notice.findByIdAndUpdate(noticeId, data, { new: true });
+  const updatedNotice = await Notice.findByIdAndUpdate(noticeId, data, {
+    new: true,
+  });
+
+  if (updatedNotice) {
+    // Clear cache when updating notice
+    await redis.del("notices:*");
+  }
+
+  return updatedNotice;
 };
 
 const toggleNoticeDraft = async (
   noticeId: string,
   isDraft: boolean
 ): Promise<Notices | null> => {
-  return await Notice.findByIdAndUpdate(noticeId, { isDraft }, { new: true });
+  const updatedNotice = await Notice.findByIdAndUpdate(
+    noticeId,
+    { isDraft },
+    { new: true }
+  );
+
+  if (updatedNotice) {
+    // Clear cache when toggling draft status
+    await redis.del("notices:*");
+  }
+
+  return updatedNotice;
 };
 
 const deleteNotice = async (noticeId: string): Promise<boolean> => {
   const result = await Notice.findByIdAndDelete(noticeId);
+
+  if (result) {
+    // Clear cache when deleting notice
+    await redis.del("notices:*");
+  }
+
   return !!result;
 };
 
@@ -40,6 +72,21 @@ const getAllNotices = async ({
   limit: number;
   totalPages: number;
 }> => {
+  // Create a cache key based on all query parameters
+  const filterString = JSON.stringify(filters);
+  const cacheKey = `notices:page:${page}:limit:${limit}:filters:${filterString}`;
+
+  try {
+    // Try to get cached data
+    const cachedData = await redis.get(cacheKey);
+
+    if (cachedData) {
+      return JSON.parse(cachedData);
+    }
+  } catch (error) {
+    console.error("Redis cache error:", error);
+  }
+
   const query: any = {};
 
   // Apply filters
@@ -74,15 +121,22 @@ const getAllNotices = async ({
     .skip(skip)
     .limit(limit);
 
-  const totalPages = Math.ceil(total / limit);
-
-  return {
+  const result = {
     notices,
     total,
     page,
     limit,
-    totalPages,
+    totalPages: Math.ceil(total / limit),
   };
+
+  try {
+    // Cache the result for 1 hour (3600 seconds)
+    await redis.setex(cacheKey, 3600, JSON.stringify(result));
+  } catch (error) {
+    console.error("Redis cache set error:", error);
+  }
+
+  return result;
 };
 
 export default {

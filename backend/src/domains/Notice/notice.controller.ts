@@ -110,7 +110,7 @@ const deleteNotice = async (req: Request, res: Response) => {
         message: "Notice deleted successfully",
         status: "OK",
         statusCode: httpStatus.OK,
-        data: {},
+        data: { success: true },
       })
     );
   } catch (error) {
