@@ -12,11 +12,10 @@ const Logo: React.FC<LogoProps> = ({ className = "" }) => {
       <Image
         src={logo}
         alt="Logo"
-        width={40}
-        height={40}
+        width={150}
+        height={60}
         className="rounded-md"
       />
-      <span className="font-bold text-lg">NEBS</span>
     </div>
   );
 };
