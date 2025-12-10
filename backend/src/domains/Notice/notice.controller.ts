@@ -1,20 +1,25 @@
 import { Request, Response } from "express";
 import noticeServices from "./notice.service";
+import httpStatus from "http-status";
+import { response } from "../../lib/response";
+import { handleError } from "../../lib/errorsHandle";
 
 const createNotice = async (req: Request, res: Response) => {
   try {
     const notice = await noticeServices.createNotice(req.body);
-    res.status(201).json({
-      success: true,
-      data: notice,
-      message: "Notice created successfully",
-    });
+    res.status(httpStatus.CREATED).json(
+      response({
+        message: "Notice created successfully",
+        status: "CREATED",
+        statusCode: httpStatus.CREATED,
+        data: notice,
+      })
+    );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error creating notice",
-      error: (error as Error).message,
-    });
+    const handledError = handleError(error);
+    res
+      .status(httpStatus.INTERNAL_SERVER_ERROR)
+      .json({ error: handledError.message });
   }
 };
 
@@ -24,23 +29,29 @@ const updateNotice = async (req: Request, res: Response) => {
     const notice = await noticeServices.updateNotice(id, req.body);
 
     if (!notice) {
-      return res.status(404).json({
-        success: false,
-        message: "Notice not found",
-      });
+      return res.status(httpStatus.NOT_FOUND).json(
+        response({
+          message: "Notice not found",
+          status: "NOT_FOUND",
+          statusCode: httpStatus.NOT_FOUND,
+          data: {},
+        })
+      );
     }
 
-    res.status(200).json({
-      success: true,
-      data: notice,
-      message: "Notice updated successfully",
-    });
+    res.status(httpStatus.OK).json(
+      response({
+        message: "Notice updated successfully",
+        status: "OK",
+        statusCode: httpStatus.OK,
+        data: notice,
+      })
+    );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error updating notice",
-      error: (error as Error).message,
-    });
+    const handledError = handleError(error);
+    res
+      .status(httpStatus.INTERNAL_SERVER_ERROR)
+      .json({ error: handledError.message });
   }
 };
 
@@ -52,23 +63,29 @@ const toggleNoticeDraft = async (req: Request, res: Response) => {
     const notice = await noticeServices.toggleNoticeDraft(id, isDraft);
 
     if (!notice) {
-      return res.status(404).json({
-        success: false,
-        message: "Notice not found",
-      });
+      return res.status(httpStatus.NOT_FOUND).json(
+        response({
+          message: "Notice not found",
+          status: "NOT_FOUND",
+          statusCode: httpStatus.NOT_FOUND,
+          data: {},
+        })
+      );
     }
 
-    res.status(200).json({
-      success: true,
-      data: notice,
-      message: `Notice ${isDraft ? "drafted" : "published"} successfully`,
-    });
+    res.status(httpStatus.OK).json(
+      response({
+        message: `Notice ${isDraft ? "drafted" : "published"} successfully`,
+        status: "OK",
+        statusCode: httpStatus.OK,
+        data: notice,
+      })
+    );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error toggling notice draft status",
-      error: (error as Error).message,
-    });
+    const handledError = handleError(error);
+    res
+      .status(httpStatus.INTERNAL_SERVER_ERROR)
+      .json({ error: handledError.message });
   }
 };
 
@@ -78,22 +95,29 @@ const deleteNotice = async (req: Request, res: Response) => {
     const deleted = await noticeServices.deleteNotice(id);
 
     if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Notice not found",
-      });
+      return res.status(httpStatus.NOT_FOUND).json(
+        response({
+          message: "Notice not found",
+          status: "NOT_FOUND",
+          statusCode: httpStatus.NOT_FOUND,
+          data: {},
+        })
+      );
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Notice deleted successfully",
-    });
+    res.status(httpStatus.OK).json(
+      response({
+        message: "Notice deleted successfully",
+        status: "OK",
+        statusCode: httpStatus.OK,
+        data: {},
+      })
+    );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error deleting notice",
-      error: (error as Error).message,
-    });
+    const handledError = handleError(error);
+    res
+      .status(httpStatus.INTERNAL_SERVER_ERROR)
+      .json({ error: handledError.message });
   }
 };
 
@@ -123,16 +147,19 @@ const getAllNotices = async (req: Request, res: Response) => {
       filters,
     });
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
+    res.status(httpStatus.OK).json(
+      response({
+        message: "Notices retrieved successfully",
+        status: "OK",
+        statusCode: httpStatus.OK,
+        data: result,
+      })
+    );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error fetching notices",
-      error: (error as Error).message,
-    });
+    const handledError = handleError(error);
+    res
+      .status(httpStatus.INTERNAL_SERVER_ERROR)
+      .json({ error: handledError.message });
   }
 };
 
