@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface Notices extends Document {
   _id: Types.ObjectId;
+  target: "individuals" | "department";
   title: string;
   emp_id: string;
   emp_name: string;
@@ -12,10 +13,17 @@ export interface Notices extends Document {
   description?: string;
   document: string;
   isDraft: boolean;
+  status: "active" | "inactive";
 }
 
 const noticeSchema = new Schema<Notices>(
   {
+    target: {
+      type: String,
+      required: true,
+      default: "individuals",
+      enum: ["department", "individuals"],
+    },
     title: {
       type: String,
       required: true,
@@ -60,6 +68,11 @@ const noticeSchema = new Schema<Notices>(
     isDraft: {
       type: Boolean,
       default: false,
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
     },
   },
   { timestamps: true }
